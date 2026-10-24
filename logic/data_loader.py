@@ -14,7 +14,10 @@ def split_data(df):
         data = df.values
     else:
         data = df
-    
+
+    random.seed(42)
+    np.random.seed(42)
+
     # Split by class (assuming classes are in order: first 50, next 50, last 50)
     class1 = data[:50, :]
     class2 = data[50:100, :]
