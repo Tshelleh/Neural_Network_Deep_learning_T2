@@ -36,13 +36,17 @@ def split_data(df):
     test3 = class3[30:50, :]
     
     # Concatenate all train and test samples
-    train_d = np.concatenate([train1, train2, train3], axis=0)
-    test_d = np.concatenate([test1, test2, test3], axis=0)
+    train_df = np.concatenate([train1, train2, train3], axis=0)
+    test_df = np.concatenate([test1, test2, test3], axis=0)
 
     # Shuffle the training data
-    np.random.shuffle(train_d)
-    
-    return train_d, test_d
+    np.random.shuffle(train_df)
+
+    # convert back to dataframe
+    train_df = pd.DataFrame(train_df, columns=df.columns)
+    test_df = pd.DataFrame(test_df, columns=df.columns)
+
+    return train_df, test_df
 
 if __name__ == "__main__":
     Base_DIR = os.path.dirname(os.path.abspath(__file__))
