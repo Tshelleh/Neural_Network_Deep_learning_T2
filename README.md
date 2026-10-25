@@ -33,7 +33,7 @@ A comprehensive neural network implementation with backpropagation for multi-cla
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/Tshelleh/Neural_Network_Deep_learning_T2.git
 cd Neural_Network&Deep_learning_Task2
 ```
 
