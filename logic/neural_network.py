@@ -32,9 +32,9 @@ class neural_network:
         self.BIAS=[]
         self.LAYERS=[self.FEATURES,*self.NUM_NEURONS,self.CLASSES]
         for i in range(len(self.LAYERS)-1):
-            self.WEIGHTS.append(np.random.rand(self.LAYERS[i], self.LAYERS[i+1]))
+            self.WEIGHTS.append(np.random.randn(self.LAYERS[i], self.LAYERS[i+1]) * 0.5)
             if self.USE_BIAS:
-               self.BIAS.append(np.random.rand(1, self.LAYERS[i+1]))
+               self.BIAS.append(np.random.rand(1, self.LAYERS[i+1])*0.5)
             else:
                self.BIAS.append(np.zeros((1, self.LAYERS[i+1])))
 
@@ -91,6 +91,7 @@ class neural_network:
            self.update_weights(x, YH, sk, SH)
 
     def predict(self, x):
+        x = np.asarray(x.values if hasattr(x, 'values') else x, dtype=np.float64)
         yk , _ = self.forward(x)
         # set maximum class from each row as 1 and rest as 0
         y_predict=np.zeros_like(yk)
@@ -103,10 +104,9 @@ if __name__ == "__main__":
     df = load_data(csv_path)
     train, test = split_data(df)
     X_train, y_train, X_test, y_test, Target_encoder, OriginLocation_encode = preprocessing(train, test)
-    X_train = np.asarray(X_train.values if hasattr(X_train, 'values') else X_train, dtype=np.float64)
-    y_train = np.asarray(y_train.values if hasattr(y_train, 'values') else y_train, dtype=np.float64)
-
-    Back_Pro = neural_network(2,[2,3],0.01,100,sigmoid,True)
+    Back_Pro = neural_network(2,[3,4],0.01,100,sigmoid,True)
     Back_Pro.train(X_train, y_train)
     y_pred = Back_Pro.predict(X_test)
+    acc = np.mean(np.argmax(y_pred, axis=1) == np.argmax(y_test.values, axis=1))
+    print("Accuracy:", acc)
     print(y_test,y_pred)

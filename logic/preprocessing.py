@@ -22,21 +22,27 @@ def preprocessing(train_df, test_df):
         print("Warning:Missing values")
 
     # Normalize numerical columns
-    train_df[Numerical_col] = (train_df[Numerical_col] - train_df[Numerical_col].mean()) / train_df[Numerical_col].std()
-    test_df[Numerical_col] = (test_df[Numerical_col] - test_df[Numerical_col].mean()) / test_df[Numerical_col].std()
+    mean, std = train_df[Numerical_col].mean(), train_df[Numerical_col].std()
+    train_df[Numerical_col] = (train_df[Numerical_col] - mean) / std
+    test_df[Numerical_col] = (test_df[Numerical_col] - mean) / std
 
     # Encode categorical columns
-    OriginLocation_encode = {'Biscoe': 0, 'Dream': 1, 'Torgersen': 2}
+    OriginLocation_encode = {'Biscoe': 0, 'Dream': 1, 'Torgersen': 2,"Other":3}
     train_df['OriginLocation'] = train_df['OriginLocation'].map(OriginLocation_encode)
     test_df['OriginLocation'] = test_df['OriginLocation'].map(OriginLocation_encode)
 
-    # Encode Species (one-hot encoding)
-    encoder = OneHotEncoder()
-    encoder.fit(train_df[['Species']])
-    train_df = encoder.transform(train_df)
-    test_df = encoder.transform(test_df)
+    X_train = train_df.drop('Species', axis=1)
+    y_train = train_df['Species']
+    X_test = test_df.drop('Species', axis=1)
+    y_test = test_df['Species']
 
-    return train_df, test_df, encoder
+    # Encode Species (one-hot encoding)
+    Target_encoder = OneHotEncoder()
+    Target_encoder.fit(train_df[['Species']])
+    y_train = Target_encoder.transform(y_train)
+    y_test = Target_encoder.transform(y_test)
+
+    return X_train, y_train, X_test, y_test, Target_encoder,OriginLocation_encode
 
 
 
@@ -45,6 +51,6 @@ if __name__ == "__main__":
     csv_path = os.path.join(Base_DIR,'..','data/penguins.csv')
     df = load_data(csv_path)
     train, test = split_data(df)
-    train_df, test_df, encoder = preprocessing(train, test)
-    print(train_df.head())
-    print(test_df.head())
+    X_train, y_train, X_test, y_test,Target_encoder,OriginLocation_encode = preprocessing(train, test)
+    print(X_train.head())
+    print(y_train.head())

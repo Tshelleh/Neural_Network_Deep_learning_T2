@@ -4,7 +4,8 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 def sigmoid_dash(x):
-    return x * (1 - x)
+    s = sigmoid(x)
+    return s * (1 - s)
 
 def ReLU(x):
     return np.maximum(0, x)

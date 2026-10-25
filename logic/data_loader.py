@@ -15,7 +15,6 @@ def split_data(df):
     else:
         data = df
 
-    random.seed(42)
     np.random.seed(42)
 
     # Split by class (assuming classes are in order: first 50, next 50, last 50)
@@ -24,9 +23,9 @@ def split_data(df):
     class3 = data[100:, :]
     
     # Shuffle each class
-    random.shuffle(class1)
-    random.shuffle(class2)
-    random.shuffle(class3)
+    np.random.shuffle(class1)
+    np.random.shuffle(class2)
+    np.random.shuffle(class3)
     
     # Take first 30 for train, next 20 for test from each class
     train1 = class1[:30, :]
@@ -46,8 +45,8 @@ def split_data(df):
     np.random.shuffle(train_df)
 
     # convert back to dataframe
-    train_df = pd.DataFrame(train_df, columns=df.columns)
-    test_df = pd.DataFrame(test_df, columns=df.columns)
+    train_df = pd.DataFrame(train_df, columns=df.columns).astype(df.dtypes.to_dict())
+    test_df = pd.DataFrame(test_df, columns=df.columns).astype(df.dtypes.to_dict())
 
     return train_df, test_df
 
