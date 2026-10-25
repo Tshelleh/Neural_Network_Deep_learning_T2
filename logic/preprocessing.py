@@ -13,8 +13,10 @@ def preprocessing(train_df, test_df):
     Numerical_col = ['CulmenLength', 'CulmenDepth', 'FlipperLength', 'BodyMass']
 
     # Fill Numerical missing values with mean
+    train_mean = train_df.groupby("Species")[Numerical_col].mean()
     train_df[Numerical_col]=train_df[Numerical_col].fillna(train_df.groupby("Species")[Numerical_col].transform('mean'))
-    test_df[Numerical_col]=test_df[Numerical_col].fillna(test_df.groupby("Species")[Numerical_col].transform('mean'))
+    for col in Numerical_col:
+        test_df[col]=test_df[col].fillna(test_df["Species"].map(train_mean[col]))
 
     if train_df.isnull().sum().sum() == 0 and test_df.isnull().sum().sum() == 0:
         print("No missing values there")
@@ -27,9 +29,9 @@ def preprocessing(train_df, test_df):
     test_df[Numerical_col] = (test_df[Numerical_col] - mean) / std
 
     # Encode categorical columns
-    OriginLocation_encode = {'Biscoe': 0, 'Dream': 1, 'Torgersen': 2,"Other":3}
-    train_df['OriginLocation'] = train_df['OriginLocation'].map(OriginLocation_encode)
-    test_df['OriginLocation'] = test_df['OriginLocation'].map(OriginLocation_encode)
+    OriginLocation_encode = {'Biscoe': 0, 'Dream': 1, 'Torgersen': 2,'Other':3}
+    train_df['OriginLocation'] = train_df['OriginLocation'].map(OriginLocation_encode).fillna(OriginLocation_encode['Other'])
+    test_df['OriginLocation'] = test_df['OriginLocation'].map(OriginLocation_encode).fillna(OriginLocation_encode['Other'])
 
     X_train = train_df.drop('Species', axis=1)
     y_train = train_df['Species']
