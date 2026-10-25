@@ -1,0 +1,3 @@
+activation,train_accuracy,test_accuracy,lr,epochs,layers,hidden_nodes,bias
+Sigmoid,100.0,100.0,0.1,100,1,2,True
+Tanh,100.0,100.0,0.005,100,1,3,True

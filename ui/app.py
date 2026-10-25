@@ -1,3 +1,5 @@
+"""Tkinter front end. Only widgets and event handling live here;
+everything else (data, preprocessing, training, classification) is in logic/pipeline.py."""
 import os
 import sys
 import queue
@@ -5,85 +7,23 @@ import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-import numpy as np
-import pandas as pd
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# ROOT for `logic.xxx` imports, ROOT/logic because some logic files use plain `import activations`
-for p in (ROOT, os.path.join(ROOT, 'logic')):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-from logic.data_loader import load_data, split_data
-from logic.preprocessing import preprocessing
-from logic.activations import sigmoid, tanh
-from logic.neural_network import neural_network
-from logic.metrics import confusion_matrix, accuracy
-
-NUM_COLS = ['CulmenLength', 'CulmenDepth', 'FlipperLength', 'BodyMass']
-ORIGINS = ['Biscoe', 'Dream', 'Torgersen']
-ACTIVATIONS = {'Sigmoid': sigmoid, 'Hyperbolic Tangent (tanh)': tanh}
-
-
-def recover_norm_stats(raw_train, norm_train):
-    """Recover (mean, std) used by preprocessing for each numeric column.
-
-    normalized = (raw - mean) / std is affine, so a straight-line fit of raw vs
-    normalized (on rows that were not missing) gives std as slope and mean as
-    intercept. This keeps the UI correct even if preprocessing changes how it
-    fills missing values.
-    """
-    mean, std = {}, {}
-    for col in NUM_COLS:
-        ok = raw_train[col].notna().to_numpy()
-        raw = raw_train.loc[ok, col].to_numpy(dtype=float)
-        norm = norm_train.loc[ok, col].to_numpy(dtype=float)
-        slope, intercept = np.polyfit(norm, raw, 1)
-        mean[col], std[col] = intercept, slope
-    return mean, std
-
-
-def format_cm(cm, names):
-    labels = [str(names.get(i, f"Class {i}")) for i in range(cm.shape[0])]
-    w = max(len(l) for l in labels) + 2
-    head = "Actual \\ Pred".ljust(w + 8) + "".join(l.rjust(w) for l in labels)
-    rows = [head]
-    for i, l in enumerate(labels):
-        rows.append(l.ljust(w + 8) + "".join(str(v).rjust(w) for v in cm[i]))
-    return "\n".join(rows)
+from logic.pipeline import Pipeline, ACTIVATIONS, NUMERIC_FEATURES, ORIGINS
+from logic.metrics import format_confusion_matrix
 
 
 class App:
-    def __init__(self, root):
+    def __init__(self, root, pipeline):
         self.root = root
-        root.title("Task 2 - Backpropagation Neural Network")
-        root.resizable(False, False)
-
+        self.pipeline = pipeline
         self.model = None
         self.results = queue.Queue()
-        self._load_data()
+        root.title("Task 2 - Backpropagation Neural Network")
+        root.resizable(False, False)
         self._build_ui()
-
-    # ---------- data ----------
-    def _load_data(self):
-        df = load_data(os.path.join(ROOT, 'data', 'penguins.csv'))
-        train, test = split_data(df)
-        raw_train = train.copy()          # preprocessing modifies train in place
-
-        (self.X_train, self.y_train, self.X_test, self.y_test,
-         target_encoder, self.origin_encode) = preprocessing(train, test)
-
-        self.mean, self.std = recover_norm_stats(raw_train, self.X_train)
-
-        # map one-hot column index -> original species name
-        self.class_names = {}
-        try:
-            names = list(df['Species'].unique())
-            enc = target_encoder.transform(pd.DataFrame({'Species': names}))
-            for name, idx in zip(names, np.argmax(enc.values, axis=1)):
-                self.class_names[int(idx)] = str(name)
-        except Exception:
-            self.class_names = {}
 
     # ---------- UI ----------
     def _build_ui(self):
@@ -95,7 +35,7 @@ class App:
 
         self.h_var = tk.StringVar(value="2")
         self.n_var = tk.StringVar(value="4,5")
-        self.eta_var = tk.StringVar(value="0.5")
+        self.eta_var = tk.StringVar(value="0.01")
         self.ep_var = tk.StringVar(value="1000")
         self.bias_var = tk.BooleanVar(value=True)
         self.act_var = tk.StringVar(value="Sigmoid")
@@ -116,7 +56,7 @@ class App:
 
         ttk.Label(box, text="Activation function").grid(row=5, column=0, sticky="w", **pad)
         ttk.Combobox(box, textvariable=self.act_var, values=list(ACTIVATIONS), state="readonly",
-                     width=24).grid(row=5, column=1, **pad)
+                     width=10).grid(row=5, column=1, **pad)
 
         self.train_btn = ttk.Button(box, text="Train", command=self.on_train)
         self.train_btn.grid(row=6, column=0, columnspan=2, pady=8)
@@ -133,48 +73,42 @@ class App:
         cls = ttk.LabelFrame(self.root, text="3. Classification (single sample)")
         cls.grid(row=2, column=0, sticky="ew", padx=10, pady=8)
         self.sample_vars = {}
-        for i, col in enumerate(NUM_COLS):
+        for i, col in enumerate(NUMERIC_FEATURES):
             ttk.Label(cls, text=col).grid(row=i, column=0, sticky="w", **pad)
             v = tk.StringVar()
             ttk.Entry(cls, textvariable=v, width=12).grid(row=i, column=1, **pad)
             self.sample_vars[col] = v
-        ttk.Label(cls, text="OriginLocation").grid(row=len(NUM_COLS), column=0, sticky="w", **pad)
+        r = len(NUMERIC_FEATURES)
+        ttk.Label(cls, text="OriginLocation").grid(row=r, column=0, sticky="w", **pad)
         self.origin_var = tk.StringVar(value=ORIGINS[0])
         ttk.Combobox(cls, textvariable=self.origin_var, values=ORIGINS, state="readonly",
-                     width=10).grid(row=len(NUM_COLS), column=1, **pad)
+                     width=10).grid(row=r, column=1, **pad)
 
         self.cls_btn = ttk.Button(cls, text="Classify", command=self.on_classify, state="disabled")
-        self.cls_btn.grid(row=len(NUM_COLS) + 1, column=0, columnspan=2, pady=6)
+        self.cls_btn.grid(row=r + 1, column=0, columnspan=2, pady=6)
         self.cls_result = tk.StringVar(value="")
         ttk.Label(cls, textvariable=self.cls_result, font=("Segoe UI", 11, "bold")).grid(
-            row=len(NUM_COLS) + 2, column=0, columnspan=2, **pad)
+            row=r + 2, column=0, columnspan=2, **pad)
 
     # ---------- training ----------
-    def read_params(self):
+    def read_inputs(self):
+        """Text boxes -> numbers. Range checks are done by the logic layer."""
         try:
             h = int(self.h_var.get())
-        except ValueError:
-            raise ValueError("Number of hidden layers must be an integer")
-        if h < 1:
-            raise ValueError("Number of hidden layers must be at least 1")
-        try:
             neurons = [int(p) for p in self.n_var.get().replace(" ", "").split(",") if p != ""]
         except ValueError:
-            raise ValueError("Neurons must be integers separated by commas, e.g. 4,5")
-        if len(neurons) != h or any(n < 1 for n in neurons):
-            raise ValueError(f"Enter exactly {h} positive integer(s) for neurons")
+            raise ValueError("Hidden layers and neurons must be integers, e.g. neurons: 4,5")
         try:
             eta = float(self.eta_var.get())
             epochs = int(self.ep_var.get())
         except ValueError:
-            raise ValueError("Eta must be a number and epochs an integer")
-        if eta <= 0 or epochs < 1:
-            raise ValueError("Eta must be > 0 and epochs >= 1")
-        return h, neurons, eta, epochs, ACTIVATIONS[self.act_var.get()], self.bias_var.get()
+            raise ValueError("Learning rate must be a number and epochs an integer")
+        return h, neurons, eta, epochs, self.act_var.get(), self.bias_var.get()
 
     def on_train(self):
         try:
-            params = self.read_params()
+            params = self.read_inputs()
+            self.pipeline.validate_params(*params[:4])
         except ValueError as e:
             messagebox.showerror("Invalid input", str(e))
             return
@@ -184,63 +118,50 @@ class App:
         threading.Thread(target=self._train_worker, args=params, daemon=True).start()
         self.root.after(100, self._poll)
 
-    def _train_worker(self, h, neurons, eta, epochs, act, bias):
-        # runs in a worker thread: never touch Tk widgets here, only put into the queue
+    def _train_worker(self, *params):
+        # worker thread: never touch Tk widgets here, only put the outcome in the queue
         try:
-            nn = neural_network(h, neurons, eta, epochs, act, bias)
-            nn.train(self.X_train, self.y_train)
-
-            def evaluate(X, y):
-                pred = np.argmax(nn.predict(X), axis=1)
-                true = np.argmax(np.asarray(y.values if hasattr(y, 'values') else y), axis=1)
-                cm = confusion_matrix(true, pred)
-                return cm, accuracy(cm)
-
-            _, acc_tr = evaluate(self.X_train, self.y_train)
-            cm_te, acc_te = evaluate(self.X_test, self.y_test)
-            self.results.put(("ok", nn, acc_tr, acc_te, cm_te))
+            self.results.put(("ok", self.pipeline.train(*params)))
         except Exception as e:
             self.results.put(("error", e))
 
     def _poll(self):
         try:
-            msg = self.results.get_nowait()
+            kind, payload = self.results.get_nowait()
         except queue.Empty:
             self.root.after(100, self._poll)
             return
-        if msg[0] == "ok":
-            _, nn, acc_tr, acc_te, cm_te = msg
-            self.model = nn
-            self.status.set(f"Train accuracy: {acc_tr:.2%}    Test accuracy: {acc_te:.2%}")
-            self.cm_label.config(text="Test confusion matrix\n" + format_cm(cm_te, self.class_names))
+        if kind == "ok":
+            self.model = payload.model
+            self.status.set(f"Train accuracy: {payload.train_accuracy:.2%}    "
+                            f"Test accuracy: {payload.test_accuracy:.2%}")
+            self.cm_label.config(text="Test confusion matrix\n" +
+                                 format_confusion_matrix(payload.test_cm, self.pipeline.class_labels))
             self.cls_btn.config(state="normal")
         else:
             self.status.set("Training failed")
-            messagebox.showerror("Error", str(msg[1]))
+            messagebox.showerror("Error", str(payload))
         self.train_btn.config(state="normal")
 
     # ---------- classification ----------
-    def classify_sample(self, raw_values, origin):
-        """raw_values: dict col -> raw float. Returns (class index, class name)."""
-        vals = {col: (raw_values[col] - self.mean[col]) / self.std[col] for col in NUM_COLS}
-        vals['OriginLocation'] = self.origin_encode.get(origin, self.origin_encode['Other'])
-        row = [vals[c] for c in self.X_train.columns]
-        x = np.array([row], dtype=np.float64)
-        scores, _ = self.model.forward(x)
-        idx = int(np.argmax(scores, axis=1)[0])
-        return idx, self.class_names.get(idx, f"Class {idx}")
-
     def on_classify(self):
         try:
-            raw = {col: float(self.sample_vars[col].get()) for col in NUM_COLS}
+            sample = {col: float(var.get()) for col, var in self.sample_vars.items()}
         except ValueError:
             messagebox.showerror("Invalid input", "Enter a numeric value in every feature field")
             return
-        _, name = self.classify_sample(raw, self.origin_var.get())
+        sample["OriginLocation"] = self.origin_var.get()
+        _, name = self.pipeline.classify(self.model, sample)
         self.cls_result.set(f"Predicted: {name}")
 
 
 def run():
     root = tk.Tk()
-    App(root)
+    try:
+        pipeline = Pipeline()
+    except Exception as e:
+        messagebox.showerror("Cannot load data", str(e))
+        root.destroy()
+        return
+    App(root, pipeline)
     root.mainloop()

@@ -1,0 +1,17 @@
+Best result per activation function
+Activation  Train Acc %  Test Acc %  LR     Epochs  #Layers  #HiddenNodes  Bias
+----------  -----------  ----------  -----  ------  -------  ------------  ----
+Sigmoid     100.00       100.00      0.1    100     1        2             True
+Tanh        100.00       100.00      0.005  100     1        3             True
+
+Sigmoid - test confusion matrix
+Actual \ Pred       Gentoo     Adelie  Chinstrap
+Gentoo                  20          0          0
+Adelie                   0         20          0
+Chinstrap                0          0         20
+
+Tanh - test confusion matrix
+Actual \ Pred       Gentoo     Adelie  Chinstrap
+Gentoo                  20          0          0
+Adelie                   0         20          0
+Chinstrap                0          0         20

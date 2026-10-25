@@ -1,9 +1,6 @@
 import os
-
-from sklearn.metrics import confusion_matrix as gm, accuracy_score
 from logic.metrics import confusion_matrix, accuracy
-
-from activations import *
+from logic.activations import *
 import numpy as np
 from logic.data_loader import load_data, split_data
 from logic.preprocessing import preprocessing
@@ -107,7 +104,7 @@ if __name__ == "__main__":
     csv_path = os.path.join(Base_DIR, '..', 'data/penguins.csv')
     df = load_data(csv_path)
     train, test = split_data(df)
-    X_train, y_train, X_test, y_test, Target_encoder, OriginLocation_encode = preprocessing(train, test)
+    X_train, y_train, X_test, y_test, Target_encoder, OriginLocation_encode,stats = preprocessing(train, test)
     Back_Pro = neural_network(2,[3,4],0.01,100,sigmoid,True)
     Back_Pro.train(X_train, y_train)
     y_pred = Back_Pro.predict(X_test)
