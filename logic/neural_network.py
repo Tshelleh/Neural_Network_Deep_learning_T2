@@ -1,4 +1,8 @@
 import os
+
+from sklearn.metrics import confusion_matrix as gm, accuracy_score
+from logic.metrics import confusion_matrix, accuracy
+
 from activations import *
 import numpy as np
 from logic.data_loader import load_data, split_data
@@ -107,6 +111,13 @@ if __name__ == "__main__":
     Back_Pro = neural_network(2,[3,4],0.01,100,sigmoid,True)
     Back_Pro.train(X_train, y_train)
     y_pred = Back_Pro.predict(X_test)
-    acc = np.mean(np.argmax(y_pred, axis=1) == np.argmax(y_test.values, axis=1))
-    print("Accuracy:", acc)
-    print(y_test,y_pred)
+    y_test=np.argmax(y_test.values, axis=1)
+    y_pred=np.argmax(y_pred, axis=1)
+    mc=confusion_matrix(y_test, y_pred)
+    # mc2=gm(y_test, y_pred)
+    acc = accuracy(mc)
+    # acc2 = accuracy_score(y_test, y_pred)
+    print("Accuracy:", acc,)
+    # print("Accuracy:",acc2)
+    print("Confusion Matrix:",mc)
+    # print("Confusion Matrix:",mc2)
